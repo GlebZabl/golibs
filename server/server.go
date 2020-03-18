@@ -89,7 +89,7 @@ func (s *server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 			}
 		}
 		node = s.routing[resultPath]
-		context.Set(node.contextKey, strings.TrimLeft(req.URL.Path, resultPath))
+		context.Set(node.contextKey, strings.TrimPrefix(req.URL.Path, resultPath))
 	}
 
 	context.actions = node.actions
