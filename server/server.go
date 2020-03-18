@@ -75,13 +75,21 @@ func (s *server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 	node, ok := s.routing[req.URL.Path]
 	if !ok {
-		for key, action := range s.routing {
+		var suitPaths []string
+		for key := range s.routing {
 			if strings.Contains(req.URL.Path, key) {
-				node = action
-				context.Set(node.contextKey, strings.TrimLeft(req.URL.Path, key))
+				suitPaths = append(suitPaths, key)
 			}
 		}
 
+		var resultPath string
+		for _, path := range suitPaths {
+			if len([]rune(path)) > len([]rune(resultPath)) {
+				resultPath = path
+			}
+		}
+		node = s.routing[resultPath]
+		context.Set(node.contextKey, strings.TrimLeft(req.URL.Path, resultPath))
 	}
 
 	context.actions = node.actions
