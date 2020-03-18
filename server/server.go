@@ -44,9 +44,14 @@ func (s *server) Run(port int) (err error) {
 }
 
 func (s *server) handle(method, path string, handler HandleFunc) {
-	actions := append([]HandleFunc{}, s.middlewares...)
+		actions := append([]HandleFunc{}, s.middlewares...)
+	node := routNode{
+		method:  method,
+		actions: append(actions, handler),
+	}
 	pathParts := strings.Split(path, "*")
 	if len(pathParts) > 1 {
+		node.contextKey = pathParts[1]
 		for key := range s.routing {
 			if strings.Contains(key, pathParts[0]) {
 				panic(fmt.Sprintf("path already routed %s", pathParts[0]))
@@ -54,10 +59,7 @@ func (s *server) handle(method, path string, handler HandleFunc) {
 		}
 	}
 
-	s.routing[s.basePath+pathParts[0]] = routNode{
-		method:  method,
-		actions: append(actions, handler),
-	}
+	s.routing[s.basePath+pathParts[0]] = node
 }
 
 func (s *server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
