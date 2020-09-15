@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type HandleFunc func(*Context)
@@ -44,7 +46,7 @@ func (s *server) Run(port int) (err error) {
 }
 
 func (s *server) handle(method, path string, handler HandleFunc) {
-		actions := append([]HandleFunc{}, s.middlewares...)
+	actions := append([]HandleFunc{}, s.middlewares...)
 	node := routNode{
 		method:  method,
 		actions: append(actions, handler),
@@ -64,13 +66,13 @@ func (s *server) handle(method, path string, handler HandleFunc) {
 
 func (s *server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	context := &Context{
-		data:    make(map[string]interface{}),
-		Request: req,
-		Writer: &responseWriter{
-			ResponseWriter: res,
-			status:         0,
+		extraData: make(map[string]interface{}),
+		request:   req,
+		responseWriter: responseWriter{
+			writer: res,
 		},
-		index: -1,
+		index:     -1,
+		requestId: uuid.NewV4().String(),
 	}
 
 	node, ok := s.routing[req.URL.Path]
@@ -88,11 +90,23 @@ func (s *server) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 				resultPath = path
 			}
 		}
-		node = s.routing[resultPath]
+
+		if resultPath == "" {
+			http.NotFound(res, req)
+			return
+		}
+
+		node, ok = s.routing[resultPath]
+		if !ok {
+			http.NotFound(res, req)
+			return
+		}
 		context.Set(node.contextKey, strings.TrimPrefix(req.URL.Path, resultPath))
 	}
 
 	context.actions = node.actions
 
 	context.Next()
+
+	context.done()
 }
